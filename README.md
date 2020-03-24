@@ -1,1 +1,1 @@
-# Web Worker API
+# Web Workers API
