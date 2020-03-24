@@ -1,36 +1,100 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thema: Beipiel</title>
+  <title>HTML API: Web Worker</title>
   <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/themes/prism.min.css" integrity="sha256-cuvic28gVvjQIo3Q4hnRpQSNB0aMw3C+kjkR0i+hrWg=" crossorigin="anonymous" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/plugins/line-numbers/prism-line-numbers.min.css" integrity="sha256-Afz2ZJtXw+OuaPX10lZHY7fN1+FuTE/KdCs+j7WZTGc=" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/themes/prism.min.css"
+    integrity="sha256-cuvic28gVvjQIo3Q4hnRpQSNB0aMw3C+kjkR0i+hrWg=" crossorigin="anonymous" />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/plugins/line-numbers/prism-line-numbers.min.css"
+    integrity="sha256-Afz2ZJtXw+OuaPX10lZHY7fN1+FuTE/KdCs+j7WZTGc=" crossorigin="anonymous" />
 </head>
-<body class="line-numbers">
-<header>
-  <h1>Thema</h1>
-</header>
-<main>
-  <h2>Beispiel</h2>
-  <p>
-    Hier steht das Demo-Markup des Beispiels mit Links zu Spezifikation
-    und weiteren Ressourcen sowie einigen erklärenden Zeilen - und oft der
-    Hinweis die Entwickler-Tools im Browser (F12) zu öffnen.
-  </p>
-  <p>
-    Zusätzlich kann ich grundlegende erste Code-Zeilen präsentieren:
-  </p>
-  <pre data-file="sample.js" class="line-numbers"><code class="language-js">
-    // Beispiel
 
-    let sample = 'Template';
-    console.log(sample);
+<body>
+  <header>
+    <h1>HTML API</h1>
+  </header>
+  <main>
+    <h2>Web Workers</h2>
+    <details>
+      <summary>Hinweis Development Server</summary>
+      Das Web Worker Beispiel lässt sich aus Sicherheits-Gründen nicht über das File-Protokoll ansehen,
+      sondern muss über das Http-Protokoll gestartet werden. Einfache Lösung bei installiertem npm ist
+      einen lokalen Development-Server starten:
+      <pre><code class="language-shell">npx lite-server --baseDir=src</code></pre>
+    </details>
+    <p>
+      Die ECMAScript-Runtime ist eine Single-Thread-Runtime. Es gibt also in der Sprache und ihrer
+      Laufzeitumgebung kein Konzept des <i>Multi-Threading</i>. Über die <b>Web Workers API</b> kann allerdings
+      im Browser ein Hintergrund-Thread gestartet werden, der nicht-blockierend ausgeführt wird.
+    </p>
+    <article class="links">
+      <h3>Links</h3>
+      <ul>
+        <li><a href="https://www.w3.org/TR/workers/" target="_blank">W3C Working Draft</a></li>
+        <li><a href="https://html.spec.whatwg.org/multipage/workers.html#workers" target="_blank">WHATWG Living Standard</a></li>
+        <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API" target="_blank">MDN Intro</a></li>
+      </ul>
+    </article>
+    <h3>Anwendung</h3>
+    <p>
+      Das Worker-Script wird nicht im HTML-Markup eingebunden, sondern über den Konstruktor im Code
+      übergeben. Der Pfad ist relativ zur HTML-Seite die den Worker initialisiert bzw. absolut anzugeben.
+    </p>
+    <pre data-file="sample.js" class="line-numbers"><code class="language-js">
+    // Starten des Workers
+
+    const worker = new Worker('worker.js');
   </code></pre>
-</main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/prism.min.js" integrity="sha256-YZQM6/hLBZYkb01VYf17isoQM4qpaOP+aX96hhYrWhg=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/plugins/line-numbers/prism-line-numbers.min.js" integrity="sha256-hep5s8952MqR7Y79JYfCXZD6vQjVHs7sOu/ZGrs1OEQ=" crossorigin="anonymous"></script>
-<script src="js/sample.js"></script>
+    <p>
+      Der Worker selbst ist normaler Code - mit einer (vereinfacht) wichtigen Ausnahme. Sein
+      <i>Global Object</i> ist nicht <code class="language-js">window</code> sondern <code
+        class="language-js">self</code>. Insbesondere
+      kann er damit nicht auf die DOM-API zugreifen und die HTML-UI manipulieren. Allerdings stehen viele weitere APIs
+      zur Verfügung (XHR, Storage, WebSockets, ...)
+    </p>
+    <pre data-file="worker.js" class="line-numbers"><code class="language-js">
+    console.log(typeof window);  // undefined
+    console.log(self === this);  // true
+  </code></pre>
+    <p>
+      Die Kommunikation zwischen Haupt-Thread und Worker erfolgt über Messages. Der Nachrichten-Inhalt
+      ist frei bestimmbar.
+    </p>
+    <pre data-file="sample.js" class="line-numbers" data-start="6"><code class="language-js">
+    worker.addEventListener('message', (ev) => { console.log(ev.data); });
+
+    worker.postMessage('Hello Worker');
+    worker.postMessage([17, 4, 21]);
+    worker.postMessage({ action: 'add', args: [17,4] });
+  </code></pre>
+    <pre data-file="worker.js" class="line-numbers" data-start="5"><code class="language-js">
+    onmessage = (ev) => {
+      console.log(`Got message: ${ev.data}`);
+      if (typeof ev.data === 'string') {
+        postMessage('Hello Main Thread');
+      } else {
+        self.postMessage('Hm, dunno what to do. You sent: '
+          + JSON.stringify(ev.data));
+      }
+    }
+  </code></pre>
+  <p>
+    Neben den hier vorgestellten dedizierten Workern (einzelnes Script erzeugt einen
+    oder mehrere Worker und kommuniziert ausschließlich mit diesen) gibt es auch die
+    <code class="language-js">SharedWorker</code>, die sogar über unterschiedliche Tabs oder Fenster laufenden
+    Scripts Kommunikation erlauben. Auch der <code class="language-js">ServiceWorker</code> ist eine konkrete
+    Worker-Implementierung.
+  </p>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/prism.min.js"
+    integrity="sha256-YZQM6/hLBZYkb01VYf17isoQM4qpaOP+aX96hhYrWhg=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.19.0/plugins/line-numbers/prism-line-numbers.min.js"
+    integrity="sha256-hep5s8952MqR7Y79JYfCXZD6vQjVHs7sOu/ZGrs1OEQ=" crossorigin="anonymous"></script>
+  <script src="js/sample.js"></script>
 </body>
+
 </html>
